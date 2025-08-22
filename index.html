@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Chatroom</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        #chat-box {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .message {
+            margin: 5px 0;
+        }
+        .message .username {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+        <div id="username-section">
+            <h2 class="text-2xl font-bold mb-4">Join Chat</h2>
+            <input id="username-input" type="text" placeholder="Enter your username" class="w-full p-2 mb-4 border rounded">
+            <button onclick="joinChat()" class="bg-blue-500 text-white p-2 rounded w-full hover:bg-blue-600">Join</button>
+        </div>
+        <div id="chat-section" class="hidden">
+            <h2 class="text-2xl font-bold mb-4">Global Chatroom</h2>
+            <div id="chat-box" class="bg-gray-50"></div>
+            <div class="flex">
+                <input id="message-input" type="text" placeholder="Type a message" class="w-full p-2 border rounded-l">
+                <button onclick="sendMessage()" class="bg-blue-500 text-white p-2 rounded-r hover:bg-blue-600">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let username;
+
+        function joinChat() {
+            username = document.getElementById('username-input').value.trim();
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+
+            // Connect to WebSocket server (replace with your WebSocket server URL)
+            ws = new WebSocket('ws://localhost:8080');
+
+            ws.onopen = () => {
+                // Send username to server
+                ws.send(JSON.stringify({ type: 'join', username }));
+                document.getElementById('username-section').classList.add('hidden');
+                document.getElementById('chat-section').classList.remove('hidden');
+                document.getElementById('message-input').focus();
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                const chatBox = document.getElementById('chat-box');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message';
+                messageDiv.innerHTML = `<span class="username">${data.username}:</span> ${data.message}`;
+                chatBox.appendChild(messageDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            };
+
+            ws.onclose = () => {
+                const chatBox = document.getElementById('chat-box');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message text-red-500';
+                messageDiv.textContent = 'Disconnected from server';
+                chatBox.appendChild(messageDiv);
+            };
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            if (message && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'message', username, message }));
+                messageInput.value = '';
+            }
+        }
+
+        // Allow sending message with Enter key
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
